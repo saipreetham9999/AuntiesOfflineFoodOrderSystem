@@ -1,12 +1,16 @@
 package com.auntieescafe.auntieesfoodordermanagement.service.impl;
 
+import com.auntieescafe.auntieesfoodordermanagement.entity.AdminPromotionToken;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.entity.VerificationToken;
+import com.auntieescafe.auntieesfoodordermanagement.payload.request.CreateUserRequest;
+import com.auntieescafe.auntieesfoodordermanagement.repository.AdminPromotionTokenRepository;
 import com.auntieescafe.auntieesfoodordermanagement.repository.UserRepository;
 import com.auntieescafe.auntieesfoodordermanagement.repository.VerificationTokenRepository;
+import com.auntieescafe.auntieesfoodordermanagement.service.EmailService;
 import com.auntieescafe.auntieesfoodordermanagement.service.UserService;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,155 +22,189 @@ import java.util.Random;
 import java.util.UUID;
 
 @Service
-@AllArgsConstructor
 @Slf4j
 public class UserServiceImpl implements UserService {
 
-    private UserRepository userRepository;
-    private PasswordEncoder passwordEncoder;
-    private VerificationTokenRepository verificationTokenRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final AdminPromotionTokenRepository adminPromotionTokenRepository;
+    private final EmailService emailService;
+
+    @Value("${application.security.admin-promotion.super-admin-email}")
+    private String superAdminEmail;
+
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, VerificationTokenRepository verificationTokenRepository, AdminPromotionTokenRepository adminPromotionTokenRepository, EmailService emailService) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.adminPromotionTokenRepository = adminPromotionTokenRepository;
+        this.emailService = emailService;
+    }
+
+    private String sanitizeRole(String role) {
+        if (role != null && role.toUpperCase().startsWith("ROLE_")) {
+            return role.substring(5).toUpperCase();
+        }
+        return role != null ? role.toUpperCase() : null;
+    }
 
     @Override
     public User createUser(User user) {
-        log.info("Attempting to create new user with email: {}", user.getEmail());
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        User savedUser = userRepository.save(user);
-        log.info("User created successfully with ID: {} and email: {}", savedUser.getId(), savedUser.getEmail());
-        return savedUser;
+        user.setRole(sanitizeRole(user.getRole()));
+        return userRepository.save(user);
     }
 
     @Override
     public Optional<User> getUserById(UUID userId) {
-        log.debug("Attempting to retrieve user by ID: {}", userId);
-        Optional<User> user = userRepository.findById(userId);
-        user.ifPresentOrElse(
-                u -> log.debug("User found by ID: {}", userId),
-                () -> log.debug("User not found by ID: {}", userId)
-        );
-        return user;
+        return userRepository.findById(userId);
     }
 
     @Override
     public Optional<User> getUserByEmail(String email) {
-        log.debug("Attempting to retrieve user by email: {}", email);
-        Optional<User> user = userRepository.findByEmail(email);
-        user.ifPresentOrElse(
-                u -> log.debug("User found by email: {}", email),
-                () -> log.debug("User not found by email: {}", email)
-        );
-        return user;
+        return userRepository.findByEmail(email);
     }
 
     @Override
     public List<User> getAllUsers() {
-        log.debug("Retrieving all users.");
         return userRepository.findAll();
     }
 
     @Override
     public User updateUser(UUID userId, User updatedUser) {
-        log.info("Attempting to update user with ID: {}", userId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("User not found for update with ID: {}", userId);
-                    return new RuntimeException("User not found with id: " + userId);
-                });
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
         user.setName(updatedUser.getName());
         user.setEmail(updatedUser.getEmail());
         if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
-            log.debug("User password updated for ID: {}", userId);
         }
         user.setEmailVerified(updatedUser.isEmailVerified());
-        user.setRole(updatedUser.getRole()); // Update the role string
-        User savedUser = userRepository.save(user);
-        log.info("User with ID {} updated successfully.", userId);
-        return savedUser;
+        user.setRole(sanitizeRole(updatedUser.getRole()));
+        return userRepository.save(user);
     }
-
 
     @Override
     public void deleteUser(UUID userId) {
-        log.info("Attempting to delete user with ID: {}", userId);
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("User not found with id: " + userId);
+        }
         userRepository.deleteById(userId);
-        log.info("User with ID {} deleted successfully.", userId);
     }
 
     @Override
     @Transactional
     public String generateAndSaveOtp(User user) {
-        log.info("Generating and saving OTP for user with email: {}", user.getEmail());
         Random random = new Random();
-        int otpValue = 100000 + random.nextInt(900000); // Generate a 6-digit OTP
+        int otpValue = 100000 + random.nextInt(900000);
         String otp = String.valueOf(otpValue);
-        log.debug("Generated OTP: {}", otp);
-
-        // Invalidate any existing OTP for this user to ensure only one is active
-        verificationTokenRepository.findByUser(user).ifPresent(token -> {
-            verificationTokenRepository.delete(token);
-            log.debug("Deleted any existing OTP for user: {}", user.getEmail());
-        });
-
+        verificationTokenRepository.findByUser(user).ifPresent(verificationTokenRepository::delete);
         VerificationToken myToken = new VerificationToken(user, otp);
         verificationTokenRepository.save(myToken);
-        log.info("OTP for user {} saved successfully. Expiry: {}", user.getEmail(), myToken.getExpiryDate());
         return otp;
     }
 
     @Override
     @Transactional
     public boolean verifyOtp(String email, String otp) {
-        log.info("Attempting to verify OTP for email: {} with OTP: {}", email, otp);
-
-        Optional<User> userOptional = userRepository.findByEmail(email);
-        if (userOptional.isEmpty()) {
-            log.warn("User not found for email: {}. OTP verification failed.", email);
-            return false;
-        }
-        User user = userOptional.get();
-        log.debug("User found for email: {}", email);
-
-        Optional<VerificationToken> verificationTokenOptional = verificationTokenRepository.findByUserAndToken(user, otp);
-        if (verificationTokenOptional.isEmpty()) {
-            log.warn("Verification token not found for user {} with OTP: {}. OTP verification failed.", user.getEmail(), otp);
-            return false;
-        }
-
-        VerificationToken verificationToken = verificationTokenOptional.get();
-
-        if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            log.warn("OTP for user {} has expired. Expiry: {}. OTP verification failed.", user.getEmail(), verificationToken.getExpiryDate());
-            verificationTokenRepository.delete(verificationToken);
-            return false;
-        }
-
-        // The original logic to set emailVerified to true and save the user is moved to markEmailAsVerified
-        // user.setEmailVerified(true);
-        // userRepository.save(user);
-        // log.info("User {} successfully verified via OTP. Email verified status set to true.", user.getEmail());
-
-        verificationTokenRepository.delete(verificationToken);
-        log.debug("Deleted used verification token for user {}.", user.getEmail());
-        return true;
+        return userRepository.findByEmail(email)
+                .flatMap(user -> verificationTokenRepository.findByUserAndToken(user, otp))
+                .map(token -> {
+                    if (token.getExpiryDate().isBefore(LocalDateTime.now())) {
+                        verificationTokenRepository.delete(token);
+                        return false;
+                    }
+                    verificationTokenRepository.delete(token);
+                    return true;
+                }).orElse(false);
     }
 
     @Override
     @Transactional
     public void markEmailAsVerified(String email) {
-        log.info("Attempting to mark email as verified for user: {}", email);
-        Optional<User> userOptional = userRepository.findByEmail(email);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
+        userRepository.findByEmail(email).ifPresent(user -> {
             if (!user.isEmailVerified()) {
                 user.setEmailVerified(true);
                 userRepository.save(user);
-                log.info("User {} email successfully marked as verified.", email);
-            } else {
-                log.info("User {} email was already verified.", email);
             }
-        } else {
-            log.warn("User not found with email: {}. Cannot mark as verified.", email);
-            // Optionally, you could throw an exception here if not finding the user is an error condition
+        });
+    }
+
+    @Override
+    public User adminCreateUser(CreateUserRequest request) {
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(sanitizeRole(request.getRole()));
+        user.setEmailVerified(true);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        return userRepository.save(user);
+    }
+
+    @Override
+    public User updateUserRole(UUID userId, String newRole) {
+        String sanitizedNewRole = sanitizeRole(newRole);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        if ("ADMIN".equals(user.getRole()) && !"ADMIN".equals(sanitizedNewRole)) {
+            throw new SecurityException("Admins cannot be demoted.");
         }
+
+        if ("ADMIN".equals(sanitizedNewRole)) {
+            throw new SecurityException("Admin promotion requires the secure OTP process. Please use the /api/admin/promote endpoints.");
+        }
+
+        user.setRole(sanitizedNewRole);
+        return userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public String initiateAdminPromotion(UUID userId) {
+        User userToPromote = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        if ("ADMIN".equals(userToPromote.getRole())) {
+            throw new IllegalStateException("User is already an admin.");
+        }
+
+        Random random = new Random();
+        int otpValue = 100000 + random.nextInt(900000);
+        String otp = String.valueOf(otpValue);
+
+        adminPromotionTokenRepository.findByUser(userToPromote).ifPresent(adminPromotionTokenRepository::delete);
+
+        AdminPromotionToken promotionToken = new AdminPromotionToken(userToPromote, otp);
+        adminPromotionTokenRepository.save(promotionToken);
+
+        log.info("Sending admin promotion OTP to super admin: {}", superAdminEmail);
+        emailService.sendOtpEmail(superAdminEmail, otp);
+
+        return "OTP sent to the super admin's email for verification.";
+    }
+
+    @Override
+    @Transactional
+    public User confirmAdminPromotion(String otp) {
+        AdminPromotionToken promotionToken = adminPromotionTokenRepository.findByToken(otp)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired OTP."));
+
+        if (promotionToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            adminPromotionTokenRepository.delete(promotionToken);
+            throw new RuntimeException("OTP has expired.");
+        }
+
+        User userToPromote = promotionToken.getUser();
+        userToPromote.setRole("ADMIN");
+        userRepository.save(userToPromote);
+
+        adminPromotionTokenRepository.delete(promotionToken);
+
+        log.info("User {} has been successfully promoted to ADMIN.", userToPromote.getEmail());
+        return userToPromote;
     }
 }

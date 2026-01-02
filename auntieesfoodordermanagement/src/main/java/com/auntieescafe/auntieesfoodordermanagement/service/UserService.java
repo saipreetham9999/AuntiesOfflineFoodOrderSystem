@@ -1,7 +1,7 @@
 package com.auntieescafe.auntieesfoodordermanagement.service;
 
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
-import com.auntieescafe.auntieesfoodordermanagement.entity.VerificationToken;
+import com.auntieescafe.auntieesfoodordermanagement.payload.request.CreateUserRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,8 +16,15 @@ public interface UserService {
     void deleteUser(UUID userId);
 
     // Methods for email verification (OTP-based)
-    String generateAndSaveOtp(User user); // Generates OTP, saves token, returns OTP
-    boolean verifyOtp(String email, String otp); // Verifies OTP for a given email
-
+    String generateAndSaveOtp(User user);
+    boolean verifyOtp(String email, String otp);
     void markEmailAsVerified(String email);
+
+    // Admin specific methods
+    User adminCreateUser(CreateUserRequest request);
+    User updateUserRole(UUID userId, String newRole);
+
+    // Secure Admin Promotion
+    String initiateAdminPromotion(UUID userId);
+    User confirmAdminPromotion(String otp);
 }

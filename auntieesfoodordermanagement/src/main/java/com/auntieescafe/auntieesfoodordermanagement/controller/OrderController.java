@@ -28,16 +28,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderController {
 
-    private OrderService orderService;
-    private UserService userService;
+    private final OrderService orderService;
+    private final UserService userService;
 
-    // --- Customer Endpoints ---
-
+    // --- Customer Endpoint ---
     @GetMapping("/customer")
     public ResponseEntity<List<OrderResponse>> getCustomerOrders() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userEmail = authentication.getName();
-
         log.info("Fetching orders for customer with email: {}", userEmail);
 
         Optional<User> userOptional = userService.getUserByEmail(userEmail);
@@ -46,67 +44,73 @@ public class OrderController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
         User customer = userOptional.get();
-
         List<Order> orders = orderService.getOrdersByCustomer(customer);
-
         List<OrderResponse> orderResponses = orders.stream()
                 .map(this::mapOrderToOrderResponse)
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(orderResponses);
     }
 
     // --- Admin Endpoints ---
-
     @GetMapping("/admin/all")
-    public ResponseEntity<List<Order>> getAllOrders() {
+    public ResponseEntity<List<OrderResponse>> getAllOrders() {
         log.info("Admin fetching all orders");
         List<Order> orders = orderService.getAllOrders();
-        return ResponseEntity.ok(orders);
+        List<OrderResponse> orderResponses = orders.stream()
+                .map(this::mapOrderToOrderResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orderResponses);
+    }
+
+    @GetMapping("/admin/user/{userId}")
+    public ResponseEntity<List<OrderResponse>> getOrdersByUserId(@PathVariable UUID userId) {
+        log.info("Admin fetching orders for user ID: {}", userId);
+        Optional<User> userOptional = userService.getUserById(userId);
+        if (userOptional.isEmpty()) {
+            log.warn("User not found with ID: {}", userId);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        User customer = userOptional.get();
+        List<Order> orders = orderService.getOrdersByCustomer(customer);
+        List<OrderResponse> orderResponses = orders.stream()
+                .map(this::mapOrderToOrderResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orderResponses);
     }
 
     // --- Kitchen Endpoints ---
-
     @GetMapping("/kitchen")
-    public ResponseEntity<List<Order>> getKitchenOrders() {
+    public ResponseEntity<List<OrderResponse>> getKitchenOrders() {
         log.info("Fetching active kitchen orders");
         List<Order> orders = orderService.getKitchenOrders();
-        return ResponseEntity.ok(orders);
+        List<OrderResponse> orderResponses = orders.stream()
+                .map(this::mapOrderToOrderResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orderResponses);
     }
 
     @PutMapping("/{orderId}/status")
     public ResponseEntity<?> updateOrderStatus(@PathVariable UUID orderId, @RequestBody Map<String, String> payload) {
         String statusStr = payload.get("status");
         log.info("Updating status for order {} to {}", orderId, statusStr);
-
         try {
-            // Handle "Ready for Pickup" mapping if necessary, or assume enum names match
-            // If the frontend sends "Ready for Pickup", we might need to map it to READY
-            OrderStatus newStatus;
-            if ("Ready for Pickup".equalsIgnoreCase(statusStr)) {
-                newStatus = OrderStatus.READY;
-            } else {
-                newStatus = OrderStatus.valueOf(statusStr);
-            }
-            
+            OrderStatus newStatus = OrderStatus.valueOf(statusStr.toUpperCase().replace(" ", "_"));
             Order updatedOrder = orderService.changeOrderStatus(orderId, newStatus);
-            return ResponseEntity.ok(updatedOrder);
+            return ResponseEntity.ok(mapOrderToOrderResponse(updatedOrder));
         } catch (IllegalArgumentException e) {
             log.warn("Invalid status provided: {}", statusStr);
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid status: " + statusStr));
         } catch (Exception e) {
-            log.error("Error updating order status", e);
+            log.error("Error updating order status for order {}", orderId, e);
             return ResponseEntity.internalServerError().body(Map.of("message", "Error updating status"));
         }
     }
 
     // --- Helper Methods ---
-
     private OrderResponse mapOrderToOrderResponse(Order order) {
         List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
                 .map(this::mapOrderItemToOrderItemResponse)
                 .collect(Collectors.toList());
-
         return new OrderResponse(
                 order.getId(),
                 order.getCreatedAt(),

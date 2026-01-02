@@ -18,7 +18,7 @@ import java.util.UUID;
 @Slf4j
 public class MenuController {
 
-    private MenuItemService menuItemService;
+    private final MenuItemService menuItemService;
 
     @GetMapping
     public ResponseEntity<List<MenuItem>> getMenu() {
@@ -30,6 +30,13 @@ public class MenuController {
         log.info("Admin adding new menu item: {}", menuItem.getName());
         MenuItem createdItem = menuItemService.createMenuItem(menuItem);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdItem);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MenuItem> updateMenuItem(@PathVariable UUID id, @RequestBody MenuItem menuItem) {
+        log.info("Admin updating menu item: {}", id);
+        MenuItem updatedItem = menuItemService.updateMenuItem(id, menuItem);
+        return ResponseEntity.ok(updatedItem);
     }
 
     @DeleteMapping("/{id}")
