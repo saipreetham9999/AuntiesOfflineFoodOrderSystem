@@ -1,14 +1,12 @@
 package com.auntieescafe.auntieesfoodordermanagement.service.impl;
 
-import com.auntieescafe.auntieesfoodordermanagement.entity.Role;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.entity.VerificationToken;
-import com.auntieescafe.auntieesfoodordermanagement.repository.RoleRepository;
 import com.auntieescafe.auntieesfoodordermanagement.repository.UserRepository;
 import com.auntieescafe.auntieesfoodordermanagement.repository.VerificationTokenRepository;
 import com.auntieescafe.auntieesfoodordermanagement.service.UserService;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j; // Import @Slf4j
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,11 +19,11 @@ import java.util.UUID;
 
 @Service
 @AllArgsConstructor
-@Slf4j // ADDED: Lombok annotation for logging
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private UserRepository userRepository;
-    private RoleRepository roleRepository;
+    // RoleRepository is no longer needed
     private PasswordEncoder passwordEncoder;
     private VerificationTokenRepository verificationTokenRepository;
 
@@ -81,10 +79,12 @@ public class UserServiceImpl implements UserService {
             log.debug("User password updated for ID: {}", userId);
         }
         user.setEmailVerified(updatedUser.isEmailVerified());
+        user.setRole(updatedUser.getRole()); // Update the role string
         User savedUser = userRepository.save(user);
         log.info("User with ID {} updated successfully.", userId);
         return savedUser;
     }
+
 
     @Override
     public void deleteUser(UUID userId) {
@@ -93,41 +93,7 @@ public class UserServiceImpl implements UserService {
         log.info("User with ID {} deleted successfully.", userId);
     }
 
-    @Override
-    public void addRoleToUser(UUID userId, String roleName) {
-        log.info("Attempting to add role '{}' to user with ID: {}", roleName, userId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("User not found to add role with ID: {}", userId);
-                    return new RuntimeException("User not found with id: " + userId);
-                });
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> {
-                    log.warn("Role '{}' not found to add to user with ID: {}", roleName, userId);
-                    return new RuntimeException("Role not found with name: " + roleName);
-                });
-        user.getRoles().add(role);
-        userRepository.save(user);
-        log.info("Role '{}' added to user with ID {} successfully.", roleName, userId);
-    }
-
-    @Override
-    public void removeRoleFromUser(UUID userId, String roleName) {
-        log.info("Attempting to remove role '{}' from user with ID: {}", roleName, userId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("User not found to remove role with ID: {}", userId);
-                    return new RuntimeException("User not found with id: " + userId);
-                });
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> {
-                    log.warn("Role '{}' not found to remove from user with ID: {}", roleName, userId);
-                    return new RuntimeException("Role not found with name: " + roleName);
-                });
-        user.getRoles().remove(role);
-        userRepository.save(user);
-        log.info("Role '{}' removed from user with ID {} successfully.", roleName, userId);
-    }
+    // Removed addRoleToUser and removeRoleFromUser methods
 
     @Override
     @Transactional
@@ -143,7 +109,6 @@ public class UserServiceImpl implements UserService {
             verificationTokenRepository.delete(token);
             log.debug("Deleted any existing OTP for user: {}", user.getEmail());
         });
-
 
         VerificationToken myToken = new VerificationToken(user, otp);
         verificationTokenRepository.save(myToken);
@@ -172,6 +137,7 @@ public class UserServiceImpl implements UserService {
         }
 
         VerificationToken verificationToken = verificationTokenOptional.get();
+
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             log.warn("OTP for user {} has expired. Expiry: {}. OTP verification failed.", user.getEmail(), verificationToken.getExpiryDate());

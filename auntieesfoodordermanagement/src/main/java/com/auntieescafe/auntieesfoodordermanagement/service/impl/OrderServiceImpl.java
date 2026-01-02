@@ -116,8 +116,9 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<Order> getCustomerOrders(UUID customerId) {
-        return orderRepository.findByCustomerId(customerId);
+    public List<Order> getOrdersByCustomer(User customer) { // Changed signature
+        // Assuming OrderRepository has a method like findByCustomer(User customer)
+        return orderRepository.findByCustomer(customer);
     }
 
     private String generateOrderCode() {

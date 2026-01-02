@@ -37,9 +37,8 @@ public class SecurityConfig {
                 .map(user -> org.springframework.security.core.userdetails.User.builder()
                         .username(user.getEmail())
                         .password(user.getPassword())
-                        .roles(user.getRoles().stream()
-                                .map(role -> role.getName())
-                                .toArray(String[]::new))
+                        // Updated to use the single String role from User entity
+                        .roles(user.getRole())
                         .build())
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + username));
     }

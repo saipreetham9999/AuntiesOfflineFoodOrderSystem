@@ -1,6 +1,7 @@
 package com.auntieescafe.auntieesfoodordermanagement.service;
 
 import com.auntieescafe.auntieesfoodordermanagement.entity.Order;
+import com.auntieescafe.auntieesfoodordermanagement.entity.User; // Import User
 import com.auntieescafe.auntieesfoodordermanagement.entity.OrderItem;
 import com.auntieescafe.auntieesfoodordermanagement.entity.OrderStatus;
 
@@ -17,5 +18,6 @@ public interface OrderService {
     Order updateOrder(UUID orderId, Order order); // Consider more specific update methods
     void deleteOrder(UUID orderId);
     Order changeOrderStatus(UUID orderId, OrderStatus newStatus);
-    List<Order> getCustomerOrders(UUID customerId);
+    // Changed to accept User object
+    List<Order> getOrdersByCustomer(User customer);
 }
