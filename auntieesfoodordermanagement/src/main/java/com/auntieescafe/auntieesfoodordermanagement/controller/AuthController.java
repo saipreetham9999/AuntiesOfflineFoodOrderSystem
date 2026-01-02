@@ -3,13 +3,13 @@ package com.auntieescafe.auntieesfoodordermanagement.controller;
 import com.auntieescafe.auntieesfoodordermanagement.entity.Role;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.payload.LoginRequest;
-import com.auntieescafe.auntieesfoodordermanagement.payload.OtpVerificationRequest; // Import OtpVerificationRequest
+import com.auntieescafe.auntieesfoodordermanagement.payload.OtpVerificationRequest;
 import com.auntieescafe.auntieesfoodordermanagement.payload.RegisterRequest;
 import com.auntieescafe.auntieesfoodordermanagement.repository.RoleRepository;
-import com.auntieescafe.auntieesfoodordermanagement.service.EmailService; // Import EmailService (will be created next)
+import com.auntieescafe.auntieesfoodordermanagement.service.EmailService;
 import com.auntieescafe.auntieesfoodordermanagement.service.UserService;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j; // Import @Slf4j
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,18 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Map; // Import Map
 
 @RestController
 @RequestMapping("/api/auth")
 @AllArgsConstructor
-@Slf4j // ADDED: Lombok annotation for logging
+@Slf4j
 public class AuthController {
 
     private UserService userService;
     private RoleRepository roleRepository;
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
-    private EmailService emailService; // ADDED: Inject EmailService
+    private EmailService emailService;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
@@ -44,7 +45,7 @@ public class AuthController {
         // Check if email already exists
         if (userService.getUserByEmail(registerRequest.getEmail()).isPresent()) {
             log.warn("Registration failed: Email {} is already taken.", registerRequest.getEmail());
-            return new ResponseEntity<>("Email is already taken!", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Map.of("message", "Email is already taken!"), HttpStatus.BAD_REQUEST);
         }
 
         // Create new user's account
@@ -72,11 +73,11 @@ public class AuthController {
         emailService.sendOtpEmail(registeredUser.getEmail(), otp); // Call EmailService to send OTP
         log.info("OTP sent to {} for verification.", registeredUser.getEmail());
 
-        return new ResponseEntity<>("User registered successfully. Please check your email for OTP verification.", HttpStatus.CREATED);
+        return new ResponseEntity<>(Map.of("message", "User registered successfully. Please check your email for OTP verification."), HttpStatus.CREATED);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> authenticateUser(@RequestBody LoginRequest loginRequest){
+    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest){ // Changed return type to ResponseEntity<?>
         log.info("Received login request for email: {}", loginRequest.getEmail());
         try {
             Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
@@ -84,10 +85,10 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             log.info("User {} logged-in successfully.", loginRequest.getEmail());
-            return new ResponseEntity<>("User logged-in successfully!", HttpStatus.OK);
+            return new ResponseEntity<>(Map.of("message", "User logged-in successfully!"), HttpStatus.OK);
         } catch (Exception e) {
             log.warn("Login failed for email {}: {}", loginRequest.getEmail(), e.getMessage());
-            return new ResponseEntity<>("Invalid credentials or account not verified.", HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(Map.of("message", "Invalid credentials or account not verified."), HttpStatus.UNAUTHORIZED);
         }
     }
 
@@ -98,10 +99,10 @@ public class AuthController {
 
         if (isVerified) {
             log.info("OTP verification successful for email: {}", otpVerificationRequest.getEmail());
-            return new ResponseEntity<>("OTP verified successfully. Account activated!", HttpStatus.OK);
+            return new ResponseEntity<>(Map.of("message", "OTP verified successfully. Account activated!"), HttpStatus.OK);
         } else {
             log.warn("OTP verification failed for email: {}", otpVerificationRequest.getEmail());
-            return new ResponseEntity<>("Invalid or expired OTP.", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Map.of("message", "Invalid or expired OTP."), HttpStatus.BAD_REQUEST);
         }
     }
 }
