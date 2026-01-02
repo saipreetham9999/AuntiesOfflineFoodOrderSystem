@@ -12,16 +12,22 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 @AllArgsConstructor
 public class SecurityConfig {
 
-    private UserRepository userRepository; // Inject UserRepository to use in UserDetailsService
+    private UserRepository userRepository;
 
     @Bean
-    public static PasswordEncoder passwordgiEncoder() {
+    public static PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
@@ -44,25 +50,36 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:4200")); // Allow your Angular app
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true); // Important for session cookies
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable()) // Disable CSRF for now, enable for production with proper configuration
+        http
+                .csrf(csrf -> csrf.disable()) // Disable CSRF for API
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .authorizeHttpRequests((authorize) -> {
-                    authorize.requestMatchers("/admin/**").hasRole("ADMIN");
-                    authorize.requestMatchers("/cashier/**").hasAnyRole("ADMIN", "CASHIER");
-                    authorize.requestMatchers("/kitchen/**").hasAnyRole("ADMIN", "KITCHEN");
-                    authorize.requestMatchers("/customer/**").hasRole("CUSTOMER");
-                    authorize.requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**").permitAll(); // Allow public access to login, register, static resources
-                    authorize.anyRequest().authenticated(); // All other requests require authentication
-                }).formLogin(
-                        form -> form
-                                .loginPage("/login")
-                                .loginProcessingUrl("/login")
-                                .defaultSuccessUrl("/home") // Redirect to /home after successful login
-                                .permitAll()
-                ).logout(
-                        logout -> logout
-                                .permitAll()
-                );
+                    // Public API endpoints for authentication
+                    authorize.requestMatchers("/api/auth/**").permitAll();
+                    // Role-based access for other APIs
+                    authorize.requestMatchers("/api/admin/**").hasRole("ADMIN");
+                    authorize.requestMatchers("/api/cashier/**").hasAnyRole("ADMIN", "CASHIER");
+                    authorize.requestMatchers("/api/kitchen/**").hasAnyRole("ADMIN", "KITCHEN");
+                    authorize.requestMatchers("/api/customer/**").hasRole("CUSTOMER");
+                    // Allow static resources if any (though Angular will serve its own)
+                    authorize.requestMatchers("/css/**", "/js/**", "/images/**").permitAll();
+                    // All other requests require authentication
+                    authorize.anyRequest().authenticated();
+                });
+                // Removed formLogin and logout as Angular will handle authentication flow
         return http.build();
     }
 }
