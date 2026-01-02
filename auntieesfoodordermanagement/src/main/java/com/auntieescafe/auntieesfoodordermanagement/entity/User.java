@@ -30,7 +30,7 @@ public class User {
     @Column(nullable = false)
     private String password; // BCrypt hash
 
-    @Column(name = "email_verified", nullable = false)
+    @Column(name = "email_verified", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private boolean emailVerified = false;
 
     @CreationTimestamp

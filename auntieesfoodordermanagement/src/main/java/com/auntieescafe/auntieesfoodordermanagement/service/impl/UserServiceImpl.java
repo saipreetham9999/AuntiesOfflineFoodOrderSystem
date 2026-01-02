@@ -23,7 +23,6 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private UserRepository userRepository;
-    // RoleRepository is no longer needed
     private PasswordEncoder passwordEncoder;
     private VerificationTokenRepository verificationTokenRepository;
 
@@ -93,8 +92,6 @@ public class UserServiceImpl implements UserService {
         log.info("User with ID {} deleted successfully.", userId);
     }
 
-    // Removed addRoleToUser and removeRoleFromUser methods
-
     @Override
     @Transactional
     public String generateAndSaveOtp(User user) {
@@ -129,7 +126,6 @@ public class UserServiceImpl implements UserService {
         User user = userOptional.get();
         log.debug("User found for email: {}", email);
 
-        // Find by user and token, as a user might have multiple tokens if not invalidated properly
         Optional<VerificationToken> verificationTokenOptional = verificationTokenRepository.findByUserAndToken(user, otp);
         if (verificationTokenOptional.isEmpty()) {
             log.warn("Verification token not found for user {} with OTP: {}. OTP verification failed.", user.getEmail(), otp);
@@ -138,19 +134,39 @@ public class UserServiceImpl implements UserService {
 
         VerificationToken verificationToken = verificationTokenOptional.get();
 
-
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             log.warn("OTP for user {} has expired. Expiry: {}. OTP verification failed.", user.getEmail(), verificationToken.getExpiryDate());
-            verificationTokenRepository.delete(verificationToken); // Delete the expired token
+            verificationTokenRepository.delete(verificationToken);
             return false;
         }
 
-        user.setEmailVerified(true);
-        userRepository.save(user);
-        log.info("User {} successfully verified via OTP. Email verified status set to true.", user.getEmail());
+        // The original logic to set emailVerified to true and save the user is moved to markEmailAsVerified
+        // user.setEmailVerified(true);
+        // userRepository.save(user);
+        // log.info("User {} successfully verified via OTP. Email verified status set to true.", user.getEmail());
 
-        verificationTokenRepository.delete(verificationToken); // Delete the token after successful verification
+        verificationTokenRepository.delete(verificationToken);
         log.debug("Deleted used verification token for user {}.", user.getEmail());
         return true;
+    }
+
+    @Override
+    @Transactional
+    public void markEmailAsVerified(String email) {
+        log.info("Attempting to mark email as verified for user: {}", email);
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (!user.isEmailVerified()) {
+                user.setEmailVerified(true);
+                userRepository.save(user);
+                log.info("User {} email successfully marked as verified.", email);
+            } else {
+                log.info("User {} email was already verified.", email);
+            }
+        } else {
+            log.warn("User not found with email: {}. Cannot mark as verified.", email);
+            // Optionally, you could throw an exception here if not finding the user is an error condition
+        }
     }
 }

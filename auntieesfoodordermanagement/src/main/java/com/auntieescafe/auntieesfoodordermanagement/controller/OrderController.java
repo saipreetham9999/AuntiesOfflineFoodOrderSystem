@@ -2,6 +2,7 @@ package com.auntieescafe.auntieesfoodordermanagement.controller;
 
 import com.auntieescafe.auntieesfoodordermanagement.entity.Order;
 import com.auntieescafe.auntieesfoodordermanagement.entity.OrderItem;
+import com.auntieescafe.auntieesfoodordermanagement.entity.OrderStatus;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.payload.response.OrderItemResponse;
 import com.auntieescafe.auntieesfoodordermanagement.payload.response.OrderResponse;
@@ -13,12 +14,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -28,12 +29,14 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private OrderService orderService;
-    private UserService userService; // To get the User entity from email
+    private UserService userService;
+
+    // --- Customer Endpoints ---
 
     @GetMapping("/customer")
     public ResponseEntity<List<OrderResponse>> getCustomerOrders() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userEmail = authentication.getName(); // Get email from authenticated principal
+        String userEmail = authentication.getName();
 
         log.info("Fetching orders for customer with email: {}", userEmail);
 
@@ -50,9 +53,54 @@ public class OrderController {
                 .map(this::mapOrderToOrderResponse)
                 .collect(Collectors.toList());
 
-        log.info("Found {} orders for customer {}.", orderResponses.size(), userEmail);
         return ResponseEntity.ok(orderResponses);
     }
+
+    // --- Admin Endpoints ---
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        log.info("Admin fetching all orders");
+        List<Order> orders = orderService.getAllOrders();
+        return ResponseEntity.ok(orders);
+    }
+
+    // --- Kitchen Endpoints ---
+
+    @GetMapping("/kitchen")
+    public ResponseEntity<List<Order>> getKitchenOrders() {
+        log.info("Fetching active kitchen orders");
+        List<Order> orders = orderService.getKitchenOrders();
+        return ResponseEntity.ok(orders);
+    }
+
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<?> updateOrderStatus(@PathVariable UUID orderId, @RequestBody Map<String, String> payload) {
+        String statusStr = payload.get("status");
+        log.info("Updating status for order {} to {}", orderId, statusStr);
+
+        try {
+            // Handle "Ready for Pickup" mapping if necessary, or assume enum names match
+            // If the frontend sends "Ready for Pickup", we might need to map it to READY
+            OrderStatus newStatus;
+            if ("Ready for Pickup".equalsIgnoreCase(statusStr)) {
+                newStatus = OrderStatus.READY;
+            } else {
+                newStatus = OrderStatus.valueOf(statusStr);
+            }
+            
+            Order updatedOrder = orderService.changeOrderStatus(orderId, newStatus);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid status provided: {}", statusStr);
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid status: " + statusStr));
+        } catch (Exception e) {
+            log.error("Error updating order status", e);
+            return ResponseEntity.internalServerError().body(Map.of("message", "Error updating status"));
+        }
+    }
+
+    // --- Helper Methods ---
 
     private OrderResponse mapOrderToOrderResponse(Order order) {
         List<OrderItemResponse> itemResponses = order.getOrderItems().stream()
@@ -61,8 +109,8 @@ public class OrderController {
 
         return new OrderResponse(
                 order.getId(),
-                order.getCreatedAt(), // Using createdAt as the date
-                order.getStatus().name(), // Convert enum to String
+                order.getCreatedAt(),
+                order.getStatus().name(),
                 order.getTotalAmount(),
                 itemResponses
         );

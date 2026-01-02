@@ -1,0 +1,41 @@
+package com.auntieescafe.auntieesfoodordermanagement.controller;
+
+import com.auntieescafe.auntieesfoodordermanagement.entity.MenuItem;
+import com.auntieescafe.auntieesfoodordermanagement.service.MenuItemService;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/menu")
+@AllArgsConstructor
+@Slf4j
+public class MenuController {
+
+    private MenuItemService menuItemService;
+
+    @GetMapping
+    public ResponseEntity<List<MenuItem>> getMenu() {
+        return ResponseEntity.ok(menuItemService.getActiveMenuItems());
+    }
+
+    @PostMapping
+    public ResponseEntity<MenuItem> addMenuItem(@RequestBody MenuItem menuItem) {
+        log.info("Admin adding new menu item: {}", menuItem.getName());
+        MenuItem createdItem = menuItemService.createMenuItem(menuItem);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdItem);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteMenuItem(@PathVariable UUID id) {
+        log.info("Admin deleting menu item: {}", id);
+        menuItemService.deleteMenuItem(id);
+        return ResponseEntity.ok(Map.of("message", "Menu item deleted successfully"));
+    }
+}

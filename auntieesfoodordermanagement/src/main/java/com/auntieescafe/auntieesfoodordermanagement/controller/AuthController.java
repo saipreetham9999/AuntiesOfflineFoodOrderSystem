@@ -1,5 +1,6 @@
 package com.auntieescafe.auntieesfoodordermanagement.controller;
 
+import com.auntieescafe.auntieesfoodordermanagement.config.JwtService;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.payload.LoginRequest;
 import com.auntieescafe.auntieesfoodordermanagement.payload.OtpVerificationRequest;
@@ -14,6 +15,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,6 +36,8 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
     private EmailService emailService;
+    private JwtService jwtService;
+    private UserDetailsService userDetailsService;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
@@ -46,7 +51,6 @@ public class AuthController {
         User user = new User();
         user.setName(registerRequest.getName());
         user.setEmail(registerRequest.getEmail());
-        // FIX: Set the raw password here. The service layer will handle encoding.
         user.setPassword(registerRequest.getPassword());
         user.setEmailVerified(false);
         user.setCreatedAt(LocalDateTime.now());
@@ -71,8 +75,20 @@ public class AuthController {
                     loginRequest.getEmail(), loginRequest.getPassword()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            
+            // Generate JWT Token
+            UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
+            String jwtToken = jwtService.generateToken(userDetails);
+            
+            // Get Role
+            String role = userDetails.getAuthorities().stream().findFirst().get().getAuthority();
+            
             log.info("User {} logged-in successfully.", loginRequest.getEmail());
-            return new ResponseEntity<>(Map.of("message", "User logged-in successfully!"), HttpStatus.OK);
+            return new ResponseEntity<>(Map.of(
+                    "message", "User logged-in successfully!",
+                    "token", jwtToken,
+                    "role", role
+            ), HttpStatus.OK);
         } catch (Exception e) {
             log.warn("Login failed for email {}: {}", loginRequest.getEmail(), e.getMessage());
             return new ResponseEntity<>(Map.of("message", "Invalid credentials or account not verified."), HttpStatus.UNAUTHORIZED);
@@ -86,6 +102,7 @@ public class AuthController {
 
         if (isVerified) {
             log.info("OTP verification successful for email: {}", otpVerificationRequest.getEmail());
+            userService.markEmailAsVerified(otpVerificationRequest.getEmail());
             return new ResponseEntity<>(Map.of("message", "OTP verified successfully. Account activated!"), HttpStatus.OK);
         } else {
             log.warn("OTP verification failed for email: {}", otpVerificationRequest.getEmail());
