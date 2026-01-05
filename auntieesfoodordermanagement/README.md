@@ -62,7 +62,10 @@ This project is a Spring Boot application that provides a REST API for managing 
 
 This application uses Spring Security with JWT for authentication and authorization. The `/api/auth` endpoints are public, while all other endpoints require authentication and authorization.
 
-The roles are:
+### Roles
+
+The roles are stored in the database as simple strings (`CUSTOMER`, `ADMIN`, `KITCHEN`, `CASHIER`). When a user is authenticated, Spring Security adds a `ROLE_` prefix to the role name. This means that internally, the roles are `ROLE_CUSTOMER`, `ROLE_ADMIN`, etc. The JWT token that is sent to the client contains the role with the `ROLE_` prefix.
+
 - `CUSTOMER`: Can place orders and view their own order history.
 - `CASHIER`: Can create orders for customers and guests, and search for customers.
 - `KITCHEN`: Can view and update the status of active kitchen orders.
@@ -77,11 +80,11 @@ sequenceDiagram
 
     Client->>Server: POST /api/auth/login (email, password)
     Server->>Server: Authenticate user
-    Server->>Server: Generate JWT
+    Server->>Server: Generate JWT with role (e.g., "ROLE_CUSTOMER")
     Server-->>Client: 200 OK (JWT)
 
     Client->>Server: GET /api/orders/customer (Authorization: Bearer JWT)
-    Server->>Server: Validate JWT
+    Server->>Server: Validate JWT and check for ROLE_CUSTOMER
     Server-->>Client: 200 OK (List of orders)
 ```
 
