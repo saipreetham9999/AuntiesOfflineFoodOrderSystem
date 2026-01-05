@@ -34,6 +34,9 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id") // nullable
     private User customer;
+    
+    @Column(name = "guest_name")
+    private String guestName;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_id", nullable = false)

@@ -1,6 +1,8 @@
 package com.auntieescafe.auntieesfoodordermanagement.service.impl;
 
 import com.auntieescafe.auntieesfoodordermanagement.entity.*;
+import com.auntieescafe.auntieesfoodordermanagement.payload.OrderItemRequest;
+import com.auntieescafe.auntieesfoodordermanagement.payload.OrderRequest;
 import com.auntieescafe.auntieesfoodordermanagement.repository.*;
 import com.auntieescafe.auntieesfoodordermanagement.service.OrderService;
 import lombok.AllArgsConstructor;
@@ -23,44 +25,44 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public Order createOrder(UUID createdByUserId, UUID customerId, Map<UUID, Integer> menuItemQuantities, Map<UUID, String> itemNotes) {
-        User createdBy = userRepository.findById(createdByUserId)
-                .orElseThrow(() -> new RuntimeException("User (createdBy) not found with id: " + createdByUserId));
-
-        User customer = null;
-        if (customerId != null) {
-            customer = userRepository.findById(customerId)
-                    .orElseThrow(() -> new RuntimeException("User (customer) not found with id: " + customerId));
-        }
-
+    public Order createOrder(OrderRequest orderRequest, User createdBy) {
         Order order = new Order();
-        order.setOrderCode(generateOrderCode()); // Implement a method to generate unique order codes
+        order.setOrderCode(generateOrderCode());
         order.setStatus(OrderStatus.NEW);
         order.setCreatedBy(createdBy);
-        order.setCustomer(customer);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
+
+        if ("CASHIER".equals(createdBy.getRole())) {
+            if (orderRequest.getCustomerId() != null) {
+                User customer = userRepository.findById(orderRequest.getCustomerId())
+                        .orElseThrow(() -> new IllegalArgumentException("Customer not found with id: " + orderRequest.getCustomerId()));
+                order.setCustomer(customer);
+            } else if (orderRequest.getGuestName() != null && !orderRequest.getGuestName().isBlank()) {
+                order.setGuestName(orderRequest.getGuestName());
+            } else {
+                throw new IllegalArgumentException("Either customerId or guestName must be provided for orders created by a cashier.");
+            }
+        } else { // CUSTOMER role
+            order.setCustomer(createdBy);
+        }
 
         Set<OrderItem> orderItems = new HashSet<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        for (Map.Entry<UUID, Integer> entry : menuItemQuantities.entrySet()) {
-            UUID menuItemId = entry.getKey();
-            Integer quantity = entry.getValue();
-
-            MenuItem menuItem = menuItemRepository.findById(menuItemId)
-                    .orElseThrow(() -> new RuntimeException("Menu Item not found with id: " + menuItemId));
+        for (OrderItemRequest itemRequest : orderRequest.getItems()) {
+            MenuItem menuItem = menuItemRepository.findById(itemRequest.getMenuItemId())
+                    .orElseThrow(() -> new RuntimeException("Menu Item not found with id: " + itemRequest.getMenuItemId()));
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setMenuItem(menuItem);
             orderItem.setItemNameSnapshot(menuItem.getName());
             orderItem.setUnitPriceSnapshot(menuItem.getPrice());
-            orderItem.setQuantity(quantity);
-            orderItem.setNotes(itemNotes.getOrDefault(menuItemId, null));
+            orderItem.setQuantity(itemRequest.getQuantity());
 
             orderItems.add(orderItem);
-            totalAmount = totalAmount.add(menuItem.getPrice().multiply(BigDecimal.valueOf(quantity)));
+            totalAmount = totalAmount.add(menuItem.getPrice().multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
         }
 
         order.setOrderItems(orderItems);
@@ -95,9 +97,6 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(updatedOrder.getTotalAmount());
         order.setUpdatedAt(LocalDateTime.now());
 
-        // Note: Updating order items directly via this method is not recommended due to snapshot nature.
-        // Specific methods for adding/removing/updating order items should be implemented if needed.
-
         return orderRepository.save(order);
     }
 
@@ -116,13 +115,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<Order> getOrdersByCustomer(User customer) { // Changed signature
-        // Assuming OrderRepository has a method like findByCustomer(User customer)
+    public List<Order> getOrdersByCustomer(User customer) {
         return orderRepository.findByCustomer(customer);
     }
 
     private String generateOrderCode() {
-        // Simple implementation, consider a more robust solution for production
         return "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }

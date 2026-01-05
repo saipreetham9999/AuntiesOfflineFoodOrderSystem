@@ -207,4 +207,9 @@ public class UserServiceImpl implements UserService {
         log.info("User {} has been successfully promoted to ADMIN.", userToPromote.getEmail());
         return userToPromote;
     }
+
+    @Override
+    public List<User> searchCustomers(String query) {
+        return userRepository.searchCustomers(query);
+    }
 }

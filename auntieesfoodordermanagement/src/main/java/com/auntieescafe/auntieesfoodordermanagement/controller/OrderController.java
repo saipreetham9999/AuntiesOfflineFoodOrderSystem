@@ -4,6 +4,7 @@ import com.auntieescafe.auntieesfoodordermanagement.entity.Order;
 import com.auntieescafe.auntieesfoodordermanagement.entity.OrderItem;
 import com.auntieescafe.auntieesfoodordermanagement.entity.OrderStatus;
 import com.auntieescafe.auntieesfoodordermanagement.entity.User;
+import com.auntieescafe.auntieesfoodordermanagement.payload.OrderRequest;
 import com.auntieescafe.auntieesfoodordermanagement.payload.response.OrderItemResponse;
 import com.auntieescafe.auntieesfoodordermanagement.payload.response.OrderResponse;
 import com.auntieescafe.auntieesfoodordermanagement.service.OrderService;
@@ -12,6 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,22 @@ public class OrderController {
 
     private final OrderService orderService;
     private final UserService userService;
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('CASHIER', 'CUSTOMER')")
+    public ResponseEntity<?> createOrder(@RequestBody OrderRequest orderRequest) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = authentication.getName();
+        User createdBy = userService.getUserByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        try {
+            Order createdOrder = orderService.createOrder(orderRequest, createdBy);
+            return new ResponseEntity<>(mapOrderToOrderResponse(createdOrder), HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
 
     // --- Customer Endpoint ---
     @GetMapping("/customer")

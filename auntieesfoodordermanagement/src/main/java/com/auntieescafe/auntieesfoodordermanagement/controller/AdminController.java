@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,8 +24,20 @@ public class AdminController {
 
     private final UserService userService;
 
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CASHIER')")
+    public ResponseEntity<List<UserResponse>> searchUsers(@RequestParam("q") String query) {
+        log.info("Request to search for users with query: {}", query);
+        List<User> users = userService.searchCustomers(query);
+        List<UserResponse> userResponses = users.stream()
+                .map(user -> new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.isEmailVerified()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(userResponses);
+    }
+
     // 1. Get All Users
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         log.info("Admin request to get all users");
         List<User> users = userService.getAllUsers();
@@ -36,6 +49,7 @@ public class AdminController {
 
     // 2. Create User
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
         log.info("Admin request to create a new user with email: {}", request.getEmail());
         if (userService.getUserByEmail(request.getEmail()).isPresent()) {
@@ -48,6 +62,7 @@ public class AdminController {
 
     // 3. Update Role
     @PutMapping("/{userId}/role")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateUserRole(@PathVariable UUID userId, @RequestBody Map<String, String> payload) {
         String newRole = payload.get("role");
         log.info("Admin request to update role for user {} to {}", userId, newRole);
@@ -67,6 +82,7 @@ public class AdminController {
 
     // 4. Delete User
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable UUID userId) {
         log.info("Admin request to delete user {}", userId);
         try {

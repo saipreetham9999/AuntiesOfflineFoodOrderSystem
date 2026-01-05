@@ -27,4 +27,6 @@ public interface UserService {
     // Secure Admin Promotion
     String initiateAdminPromotion(UUID userId);
     User confirmAdminPromotion(String otp);
+
+    List<User> searchCustomers(String query);
 }

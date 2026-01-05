@@ -9,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,6 +28,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -81,24 +83,23 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        
+
                         // Admin Endpoints
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/menu").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/menu/**").hasRole("ADMIN")
                         
                         // Kitchen Endpoints
                         .requestMatchers("/api/orders/kitchen").hasAnyRole("ADMIN", "KITCHEN")
                         .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAnyRole("ADMIN", "KITCHEN")
-                        
+
                         // Customer Endpoints
                         .requestMatchers("/api/orders/customer").hasRole("CUSTOMER")
-                        
+
                         // Public
                         .requestMatchers(HttpMethod.GET, "/api/menu").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-                        
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
