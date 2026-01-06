@@ -84,6 +84,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // Promotion Endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/promotions").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/promotions").hasRole("ADMIN")
+
+                        // Payment Endpoints
+                        .requestMatchers("/api/payments/**").authenticated()
+
                         // Admin Endpoints
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/menu").hasRole("ADMIN")

@@ -15,6 +15,9 @@ This project is a Spring Boot application that provides a REST API for managing 
 - Lombok
 - JWT (jjwt)
 - Thymeleaf (for email templates)
+- **Redis**: For high-performance caching of menu and promotions.
+- **RabbitMQ**: Message broker for asynchronous tasks and notifications.
+- **Spring Boot Actuator**: For monitoring system health and hit metrics.
 
 ## Endpoints
 
@@ -48,6 +51,19 @@ This project is a Spring Boot application that provides a REST API for managing 
 | PUT    | `/api/menu/{id}`  | Update a menu item.      | ADMIN       |
 | DELETE | `/api/menu/{id}`  | Delete a menu item.      | ADMIN       |
 
+### Promotions (New)
+
+| Method | Endpoint          | Description                                      | Access      |
+|--------|-------------------|--------------------------------------------------|-------------|
+| GET    | `/api/promotions` | Get all active promotions.                       | Public      |
+| POST   | `/api/promotions` | Create a promotion with image and description.   | ADMIN       |
+
+### Payments (New)
+
+| Method | Endpoint               | Description                                      | Access      |
+|--------|------------------------|--------------------------------------------------|-------------|
+| POST   | `/api/payments/process` | Process and record a transaction for an order.   | Authenticated |
+
 ### Orders
 
 | Method | Endpoint                   | Description                               | Access      |
@@ -60,6 +76,19 @@ This project is a Spring Boot application that provides a REST API for managing 
 | PUT    | `/api/orders/{orderId}/status` | Update the status of an order.          | KITCHEN, ADMIN |
 
 ## New Features
+
+### Promotions & Marketing
+- **Image Uploads**: Admins can upload promotional banners along with descriptions.
+- **Public Access**: Active promotions are visible to all users to drive engagement.
+
+### Secure Transactions
+- **Payment Integration**: Dedicated transaction tracking for every order.
+- **Audit Trail**: Stores payment IDs from external gateways and tracks payment status (`PENDING`, `COMPLETED`, etc.).
+
+### Performance & Monitoring
+- **Redis Caching**: Frequently accessed data like the menu is cached to reduce database latency.
+- **SLF4J Logging**: Structured logs with a 10MB rollover policy and 10-day history.
+- **Metrics**: Spring Boot Actuator tracks endpoint hits and system health.
 
 ### Custom Menu Item Codes
 - Each menu item now has a unique `menuCode` (e.g., "0001", "0002").
