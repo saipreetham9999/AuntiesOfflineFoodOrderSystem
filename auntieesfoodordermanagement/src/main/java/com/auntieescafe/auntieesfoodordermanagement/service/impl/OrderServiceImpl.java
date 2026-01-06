@@ -4,6 +4,7 @@ import com.auntieescafe.auntieesfoodordermanagement.entity.*;
 import com.auntieescafe.auntieesfoodordermanagement.payload.OrderItemRequest;
 import com.auntieescafe.auntieesfoodordermanagement.payload.OrderRequest;
 import com.auntieescafe.auntieesfoodordermanagement.repository.*;
+import com.auntieescafe.auntieesfoodordermanagement.service.EmailService;
 import com.auntieescafe.auntieesfoodordermanagement.service.OrderService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,20 +23,17 @@ public class OrderServiceImpl implements OrderService {
     private OrderItemRepository orderItemRepository;
     private MenuItemRepository menuItemRepository;
     private UserRepository userRepository;
+    private EmailService emailService;
 
     @Override
     @Transactional
     public Order createOrder(OrderRequest orderRequest, User createdBy) {
         Order order = new Order();
-        order.setOrderCode(generateOrderCode());
-        order.setStatus(OrderStatus.NEW);
-        order.setCreatedBy(createdBy);
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-
+        
+        User customer = null;
         if ("CASHIER".equals(createdBy.getRole())) {
             if (orderRequest.getCustomerId() != null) {
-                User customer = userRepository.findById(orderRequest.getCustomerId())
+                customer = userRepository.findById(orderRequest.getCustomerId())
                         .orElseThrow(() -> new IllegalArgumentException("Customer not found with id: " + orderRequest.getCustomerId()));
                 order.setCustomer(customer);
             } else if (orderRequest.getGuestName() != null && !orderRequest.getGuestName().isBlank()) {
@@ -44,8 +42,22 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalArgumentException("Either customerId or guestName must be provided for orders created by a cashier.");
             }
         } else { // CUSTOMER role
-            order.setCustomer(createdBy);
+            customer = createdBy;
+            order.setCustomer(customer);
         }
+
+        if (customer != null) {
+            long orderCount = orderRepository.countByCustomer(customer);
+            String orderCode = customer.getEmail() + "-" + (orderCount + 1);
+            order.setOrderCode(orderCode);
+        } else {
+            order.setOrderCode("GUEST-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        }
+
+        order.setStatus(OrderStatus.NEW);
+        order.setCreatedBy(createdBy);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
         Set<OrderItem> orderItems = new HashSet<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -111,15 +123,19 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
         order.setStatus(newStatus);
         order.setUpdatedAt(LocalDateTime.now());
+
+        if (newStatus == OrderStatus.COMPLETED) {
+            User customer = order.getCustomer();
+            if (customer != null) {
+                emailService.sendOrderCompletionEmail(customer.getEmail(), customer.getName(), order.getOrderCode());
+            }
+        }
+
         return orderRepository.save(order);
     }
 
     @Override
     public List<Order> getOrdersByCustomer(User customer) {
         return orderRepository.findByCustomer(customer);
-    }
-
-    private String generateOrderCode() {
-        return "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }

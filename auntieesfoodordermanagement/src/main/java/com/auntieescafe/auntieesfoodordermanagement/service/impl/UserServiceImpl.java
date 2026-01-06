@@ -72,20 +72,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User updateUser(UUID userId, User updatedUser) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-        user.setName(updatedUser.getName());
-        user.setEmail(updatedUser.getEmail());
-        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
-        }
-        user.setEmailVerified(updatedUser.isEmailVerified());
-        user.setRole(sanitizeRole(updatedUser.getRole()));
-        return userRepository.save(user);
-    }
-
-    @Override
     public void deleteUser(UUID userId) {
         if (!userRepository.existsById(userId)) {
             throw new RuntimeException("User not found with id: " + userId);
@@ -141,6 +127,11 @@ public class UserServiceImpl implements UserService {
         user.setEmailVerified(true);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+
+        if ("KITCHEN".equals(user.getRole()) || "CASHIER".equals(user.getRole())) {
+            emailService.sendUserCreationNotification(superAdminEmail, user.getName(), user.getEmail(), user.getRole());
+        }
+        
         return userRepository.save(user);
     }
 
@@ -159,6 +150,11 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setRole(sanitizedNewRole);
+        
+        if ("KITCHEN".equals(user.getRole()) || "CASHIER".equals(user.getRole())) {
+            emailService.sendUserUpdateNotification(superAdminEmail, user.getName(), user.getEmail(), user.getRole());
+        }
+
         return userRepository.save(user);
     }
 

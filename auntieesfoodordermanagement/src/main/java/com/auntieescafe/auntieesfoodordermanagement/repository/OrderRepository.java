@@ -20,4 +20,5 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     // New method to find orders by User object
     List<Order> findByCustomer(User customer);
+    long countByCustomer(User customer);
 }

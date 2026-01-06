@@ -9,6 +9,7 @@ import java.util.UUID;
 public interface MenuItemService {
     MenuItem createMenuItem(MenuItem menuItem);
     Optional<MenuItem> getMenuItemById(UUID menuItemId);
+    Optional<MenuItem> getMenuItemByMenuCode(String menuCode);
     List<MenuItem> getAllMenuItems();
     List<MenuItem> getActiveMenuItems();
     MenuItem updateMenuItem(UUID menuItemId, MenuItem menuItem);

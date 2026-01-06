@@ -25,6 +25,14 @@ public class MenuController {
         return ResponseEntity.ok(menuItemService.getActiveMenuItems());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<MenuItem> getMenuItemByMenuCode(@RequestParam("code") String menuCode) {
+        log.info("Searching for menu item with code: {}", menuCode);
+        return menuItemService.getMenuItemByMenuCode(menuCode)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<MenuItem> addMenuItem(@RequestBody MenuItem menuItem) {
         log.info("Admin adding new menu item: {}", menuItem.getName());

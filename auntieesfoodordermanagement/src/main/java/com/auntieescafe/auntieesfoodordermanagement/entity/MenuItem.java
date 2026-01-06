@@ -19,6 +19,9 @@ public class MenuItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false, unique = true)
+    private String menuCode;
+
     @Column(nullable = false)
     private String name;
 

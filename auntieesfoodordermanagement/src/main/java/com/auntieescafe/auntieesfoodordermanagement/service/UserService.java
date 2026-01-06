@@ -12,7 +12,6 @@ public interface UserService {
     Optional<User> getUserById(UUID userId);
     Optional<User> getUserByEmail(String email);
     List<User> getAllUsers();
-    User updateUser(UUID userId, User user);
     void deleteUser(UUID userId);
 
     // Methods for email verification (OTP-based)

@@ -43,6 +43,7 @@ This project is a Spring Boot application that provides a REST API for managing 
 | Method | Endpoint          | Description              | Access      |
 |--------|-------------------|--------------------------|-------------|
 | GET    | `/api/menu`       | Get all active menu items. | Public      |
+| GET    | `/api/menu/search`| Search for a menu item by its `menuCode`. | Public      |
 | POST   | `/api/menu`       | Add a new menu item.     | ADMIN       |
 | PUT    | `/api/menu/{id}`  | Update a menu item.      | ADMIN       |
 | DELETE | `/api/menu/{id}`  | Delete a menu item.      | ADMIN       |
@@ -57,6 +58,21 @@ This project is a Spring Boot application that provides a REST API for managing 
 | GET    | `/api/orders/admin/user/{userId}` | Get all orders for a specific user. | ADMIN       |
 | GET    | `/api/orders/kitchen`      | Get all active kitchen orders.            | KITCHEN     |
 | PUT    | `/api/orders/{orderId}/status` | Update the status of an order.          | KITCHEN, ADMIN |
+
+## New Features
+
+### Custom Menu Item Codes
+- Each menu item now has a unique `menuCode` (e.g., "0001", "0002").
+- You can search for a menu item by its code using the new `GET /api/menu/search?code={menuCode}` endpoint.
+
+### Custom Order IDs
+- Orders now have a custom ID for easier tracking.
+- For registered customers, the order ID is in the format `email-orderCount` (e.g., `customer@example.com-1`).
+- For guest orders, the format is `GUEST-` followed by a random UUID.
+
+### Email Notifications
+- **Admin Notifications:** The admin now receives an email notification when a new staff member is created or when a user's role is updated to `KITCHEN` or `CASHIER`.
+- **Order Completion:** When an order's status is updated to `COMPLETED`, the customer receives an email notification that their order is ready for pickup.
 
 ## Security
 

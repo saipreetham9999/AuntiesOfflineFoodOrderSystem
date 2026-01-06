@@ -27,6 +27,11 @@ public class MenuItemServiceImpl implements MenuItemService {
     }
 
     @Override
+    public Optional<MenuItem> getMenuItemByMenuCode(String menuCode) {
+        return menuItemRepository.findByMenuCode(menuCode);
+    }
+
+    @Override
     public List<MenuItem> getAllMenuItems() {
         return menuItemRepository.findAll();
     }
@@ -40,6 +45,7 @@ public class MenuItemServiceImpl implements MenuItemService {
     public MenuItem updateMenuItem(UUID menuItemId, MenuItem updatedMenuItem) {
         MenuItem menuItem = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new RuntimeException("Menu Item not found with id: " + menuItemId));
+        menuItem.setMenuCode(updatedMenuItem.getMenuCode());
         menuItem.setName(updatedMenuItem.getName());
         menuItem.setPrice(updatedMenuItem.getPrice());
         menuItem.setCategory(updatedMenuItem.getCategory());
