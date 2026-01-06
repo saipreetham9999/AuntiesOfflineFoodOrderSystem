@@ -1,6 +1,6 @@
 package com.auntieescafe.auntieesfoodordermanagement.config;
 
-import com.auntieescafe.auntieesfoodordermanagement.repository.UserRepository;
+import com.auntieescafe.auntieesfoodordermanagement.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,24 +32,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final UserRepository userRepository;
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> userRepository.findByEmail(username)
-                .map(user -> org.springframework.security.core.userdetails.User.builder()
-                        .username(user.getEmail())
-                        .password(user.getPassword())
-                        .roles(user.getRole())
-                        .disabled(!user.isEmailVerified())
-                        .build())
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + username));
-    }
+    private final UserDetailsServiceImpl userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthFilter;
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService());
+        authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
@@ -77,7 +66,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -95,7 +84,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/menu").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/menu/**").hasRole("ADMIN")
-                        
+
                         // Kitchen Endpoints
                         .requestMatchers("/api/orders/kitchen").hasAnyRole("ADMIN", "KITCHEN")
                         .requestMatchers(HttpMethod.PUT, "/api/orders/*/status").hasAnyRole("ADMIN", "KITCHEN")

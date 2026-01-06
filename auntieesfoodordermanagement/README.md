@@ -19,6 +19,77 @@ This project is a Spring Boot application that provides a REST API for managing 
 - **RabbitMQ**: Message broker for asynchronous tasks and notifications.
 - **Spring Boot Actuator**: For monitoring system health and hit metrics.
 
+---
+
+## Future Architecture: SAI (Secure Application Interchange) Protocol
+
+To enhance security for internal service-to-service communication, this project will implement the **SAI Protocol**. This is a quantum-inspired security model designed to create a communication channel so intrinsically linked to the two communicating services that the message itself becomes secondary. The channel's existence *is* the proof of trust.
+
+The protocol is based on the principle of a **synchronized, evolving state**.
+
+### Core Principles
+
+1.  **The Entanglement (The Handshake):**
+    *   A central service, the **SAI Nexus**, acts as the "entanglement" source.
+    *   When `Service A` wants to talk to `Service B`, it requests a secure channel from the Nexus.
+    *   The Nexus generates a **single-use, high-entropy cryptographic seed** and securely delivers it to both services.
+    *   Both services use this seed to initialize an identical, synchronized **Cryptographically Secure Pseudo-Random Number Generator (CSPRNG)**. This shared, evolving generator *is* the "entangled state."
+
+2.  **The Communication (The "Observer Effect"):**
+    *   To send a request, `Service A` pulls the **next value** (`key_n`) from its CSPRNG.
+    *   It encrypts the request payload using `key_n` as a one-time symmetric key.
+    *   It generates a **Transient Authentication Hash (TAH)**: `hash(encrypted_payload + key_n)`.
+    *   The request sent over the wire contains only the `encrypted_payload` and the `TAH`. The key is never transmitted.
+
+3.  **The Verification (Collapsing the Waveform):**
+    *   `Service B` receives the request and pulls the **next value** from its own synchronized CSPRNG, which will be the same `key_n`.
+    *   It calculates its own `expected_TAH` and compares it to the received `TAH`.
+    *   If they match, the request is authentic and is decrypted using `key_n`. If not, it's rejected.
+    *   The act of processing the request consumes the current state, and both services are ready for the next request, which will use a new key, `key_n+1`.
+
+### UML Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant Client as Order Service
+    participant Nexus as SAI Nexus
+    participant Server as Payment Service
+
+    Note over Client, Server: Initial State: Not Entangled
+
+    %% 1. Entanglement Phase
+    Client->>+Nexus: Request channel to "Payment Service"
+    Nexus->>Nexus: Generate unique, high-entropy seed
+    Nexus-->>-Client: Securely deliver seed
+    Nexus-->>+Server: Securely deliver seed
+    Note over Client: Initializes CSPRNG with seed
+    Note over Server: Initializes CSPRNG with seed
+    Server-->>-Nexus: Acknowledgment
+    
+    Note over Client, Server: State: Entangled & Synchronized
+
+    %% 2. Communication Phase (for a single API call)
+    Client->>Client: 1. Get next key (key_n) from CSPRNG
+    Client->>Client: 2. Encrypt payload with key_n
+    Client->>Client: 3. Generate TAH = hash(encrypted_payload + key_n)
+    
+    Client->>+Server: Send {encrypted_payload, TAH}
+
+    Server->>Server: 1. Get next key (key_n) from own CSPRNG
+    Server->>Server: 2. Calculate expected_TAH = hash(encrypted_payload + key_n)
+    
+    alt Hashes Match
+        Server->>Server: 3. Decrypt payload with key_n
+        Server->>Server: 4. Process the request
+        Server-->>-Client: Encrypted Response
+    else Hashes Do Not Match
+        Server-->>-Client: Error: Authentication Failed
+        Note over Client, Server: Channel may be terminated due to desynchronization
+    end
+```
+
+---
+
 ## Endpoints
 
 ### Authentication
