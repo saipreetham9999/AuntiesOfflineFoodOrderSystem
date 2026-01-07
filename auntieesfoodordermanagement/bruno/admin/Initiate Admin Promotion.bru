@@ -1,0 +1,25 @@
+meta {
+  name: Initiate Admin Promotion
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/admin/promote/initiate
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "userId": "{{userId}}" // Replace with the ID of the user to promote
+  }
+}
+
+headers {
+  Content-Type: application/json
+}

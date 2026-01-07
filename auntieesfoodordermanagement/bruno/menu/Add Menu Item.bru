@@ -1,0 +1,36 @@
+meta {
+  name: Add Menu Item
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/menu
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Pizza Margherita",
+    "description": "Classic pizza with tomato and mozzarella",
+    "price": 12.50,
+    "category": "Pizza",
+    "active": true
+  }
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:post-request {
+  if (res.body && res.body.id) {
+    bru.setEnvVar('menuItemId', res.body.id);
+    console.log('Menu Item ID extracted and set in environment variables.');
+  }
+}

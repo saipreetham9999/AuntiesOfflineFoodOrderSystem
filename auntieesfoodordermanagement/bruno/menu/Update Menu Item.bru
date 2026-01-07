@@ -1,0 +1,29 @@
+meta {
+  name: Update Menu Item
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/menu/{{menuItemId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Pizza Margherita (Updated)",
+    "description": "Classic pizza with fresh basil and mozzarella",
+    "price": 13.00,
+    "category": "Pizza",
+    "active": true
+  }
+}
+
+headers {
+  Content-Type: application/json
+}

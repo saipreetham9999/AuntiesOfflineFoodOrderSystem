@@ -1,0 +1,38 @@
+meta {
+  name: Create Order
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "menuItemId": "{{menuItemId}}", // Replace with an actual menu item ID
+        "quantity": 1
+      }
+    ],
+    "customerId": "{{userId}}" // Optional, if creating for a specific customer by admin/cashier
+  }
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:post-request {
+  if (res.body && res.body.id) {
+    bru.setEnvVar('orderId', res.body.id);
+    console.log('Order ID extracted and set in environment variables.');
+  }
+}

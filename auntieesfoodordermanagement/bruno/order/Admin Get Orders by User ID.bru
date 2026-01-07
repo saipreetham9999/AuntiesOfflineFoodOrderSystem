@@ -1,0 +1,19 @@
+meta {
+  name: Admin Get Orders by User ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/orders/admin/user/{{userId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}

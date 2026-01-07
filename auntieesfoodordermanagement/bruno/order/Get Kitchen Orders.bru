@@ -1,0 +1,19 @@
+meta {
+  name: Get Kitchen Orders
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/orders/kitchen
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
