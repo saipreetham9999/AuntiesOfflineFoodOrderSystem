@@ -14,20 +14,9 @@ auth:bearer {
   token: {{token}}
 }
 
-body:multipartForm {
-  title: New Summer Deal
-  description: Get 20% off all cold beverages!
-  active: true
-  image: @/path/to/your/image.jpg // Replace with the actual path to an image file
-}
 
 headers {
   Content-Type: multipart/form-data
 }
 
-script:post-request {
-  if (res.body && res.body.id) {
-    bru.setEnvVar('promotionId', res.body.id);
-    console.log('Promotion ID extracted and set in environment variables.');
-  }
 }

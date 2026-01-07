@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  # Non-sensitive application properties
+  SPRING_JPA_HIBERNATE_DDL_AUTO: update
+  SPRING_JPA_SHOW_SQL: "false"
+  LOGGING_LEVEL_ROOT: INFO
+  LOGGING_LEVEL_COM_AUNTIEESCAFE: DEBUG
+  APPLICATION_SECURITY_ADMIN_PROMOTION_SUPER_ADMIN_EMAIL: saipreethamreddy44@gmail.com
+  STRIPE_API_KEY: sk_test_your_secret_key # This should ideally be a Secret, but for local testing, can be here.
+  STRIPE_WEBHOOK_SECRET: your_stripe_webhook_secret # This should ideally be a Secret, but for local testing, can be here.
+  APP_UPLOAD_DIR: uploads
+  # Resilience4j configurations (can be moved to a separate ConfigMap if extensive)
+  RESILIENCE4J_CIRCUITBREAKER_INSTANCES_STRIPESERVICE_REGISTERHEALTHINDICATOR: "true"
+  RESILIENCE4J_CIRCUITBREAKER_INSTANCES_STRIPESERVICE_SLIDINGWINDOWSIZE: "10"
+  RESILIENCE4J_CIRCUITBREAKER_INSTANCES_STRIPESERVICE_PERMITTEDNUMBEROFCALLSINHALFOPENSTATE: "3"
+  RESILIENCE4J_CIRCUITBREAKER_INSTANCES_STRIPESERVICE_FAILURERATETHRESHOLD: "50"
+  RESILIENCE4J_CIRCUITBREAKER_INSTANCES_STRIPESERVICE_WAITDURATIONINOPENSTATE: "10s"
+  RESILIENCE4J_RETRY_INSTANCES_STRIPESERVICE_MAXATTEMPTS: "3"
+  RESILIENCE4J_RETRY_INSTANCES_STRIPESERVICE_WAITDURATION: "2s"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+type: Opaque
+stringData:
+  # Sensitive application properties
+  SPRING_DATASOURCE_USERNAME: "user"
+  SPRING_DATASOURCE_PASSWORD: "password"
+  SPRING_MAIL_USERNAME: "saipreetham0929@gmail.com"
+  SPRING_MAIL_PASSWORD: "hbqqutilauuukevf"
+  APPLICATION_SECURITY_JWT_SECRET_KEY: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+  APPLICATION_SECURITY_JWT_EXPIRATION: "86400000"
+  # RABBITMQ_USERNAME: "guest" # Already in rabbitmq-secret
+  # RABBITMQ_PASSWORD: "guest" # Already in rabbitmq-secret
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auntiees-app
+  labels:
+    app: auntiees
+spec:
+  replicas: 1 # For local development, 1 replica is usually enough
+  selector:
+    matchLabels:
+      app: auntiees
+  template:
+    metadata:
+      labels:
+        app: auntiees
+    spec:
+      containers:
+      - name: auntiees-app
+        image: auntiees-food-order-management:latest # Your locally built Docker image
+        imagePullPolicy: Never # Use local image, don't try to pull from registry
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mariadb://mariadb:3306/auntiees_db # Connect to the mariadb service
+        - name: SPRING_REDIS_HOST
+          value: redis # Connect to the redis service
+        - name: SPRING_RABBITMQ_HOST
+          value: rabbitmq # Connect to the rabbitmq service
+        - name: SPRING_RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: RABBITMQ_DEFAULT_USER
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: RABBITMQ_DEFAULT_PASS
+        envFrom: # Load environment variables from ConfigMap and Secret
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secret
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 15
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auntiees-service
+spec:
+  selector:
+    app: auntiees
+  ports:
+    - protocol: TCP
+      port: 8080 # Port exposed by the service
+      targetPort: 8080 # Port of the container
+  type: LoadBalancer # For Docker Desktop, this will expose it on localhost:8080

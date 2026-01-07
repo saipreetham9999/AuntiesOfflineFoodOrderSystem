@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret
+type: Opaque
+stringData:
+  MARIADB_ROOT_PASSWORD: "Sai@123456789" # Change this to a strong password
+  MARIADB_DATABASE: "auntiees_db"
+  MARIADB_USER: "saipreetham0929"
+  MARIADB_PASSWORD: "Sai@123456789"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi # Request 5GB of storage
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  labels:
+    app: mariadb
+spec:
+  selector:
+    matchLabels:
+      app: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:10.6
+        envFrom:
+        - secretRef:
+            name: mariadb-secret
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mariadb-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mariadb-persistent-storage
+        persistentVolumeClaim:
+          claimName: mariadb-pv-claim
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb # This will be the hostname for your app to connect to
+  labels:
+    app: mariadb
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mariadb
+  clusterIP: None # Headless service for stateful applications

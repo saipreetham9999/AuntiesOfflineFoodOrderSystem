@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-secret
+type: Opaque
+stringData:
+  RABBITMQ_DEFAULT_USER: "saipreetham0929"
+  RABBITMQ_DEFAULT_PASS: "Sai@123456789"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi # Request 1GB of storage
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  selector:
+    matchLabels:
+      app: rabbitmq
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.9-management
+        envFrom:
+        - secretRef:
+            name: rabbitmq-secret
+        ports:
+        - containerPort: 5672 # AMQP port
+        - containerPort: 15672 # Management UI port
+        volumeMounts:
+        - name: rabbitmq-persistent-storage
+          mountPath: /var/lib/rabbitmq
+      volumes:
+      - name: rabbitmq-persistent-storage
+        persistentVolumeClaim:
+          claimName: rabbitmq-pv-claim
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq # This will be the hostname for your app to connect to
+  labels:
+    app: rabbitmq
+spec:
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+  selector:
+    app: rabbitmq
+  type: ClusterIP # Internal service
