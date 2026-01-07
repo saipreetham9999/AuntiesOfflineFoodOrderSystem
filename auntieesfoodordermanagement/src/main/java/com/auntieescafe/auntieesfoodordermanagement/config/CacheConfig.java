@@ -14,8 +14,7 @@ import java.time.Duration;
 public class CacheConfig {
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
+    public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(1))
                 .disableCachingNullValues();
 
