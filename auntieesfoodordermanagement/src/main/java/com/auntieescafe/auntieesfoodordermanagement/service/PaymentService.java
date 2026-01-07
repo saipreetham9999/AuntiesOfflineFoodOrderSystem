@@ -7,6 +7,7 @@ import com.auntieescafe.auntieesfoodordermanagement.entity.User;
 import com.auntieescafe.auntieesfoodordermanagement.payload.PaymentRequest;
 import com.auntieescafe.auntieesfoodordermanagement.repository.OrderRepository;
 import com.auntieescafe.auntieesfoodordermanagement.repository.TransactionRepository;
+import com.stripe.exception.StripeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,22 +22,22 @@ public class PaymentService {
 
     private final TransactionRepository transactionRepository;
     private final OrderRepository orderRepository;
+    private final StripeService stripeService;
 
     @Transactional
-    public Transaction processPayment(PaymentRequest request) {
-        log.info("Processing payment for order: {}", request.getOrderId());
-        
-        Order order = orderRepository.findById(request.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+    public String createPaymentIntent(PaymentRequest request) throws StripeException {
+        log.info("Creating payment intent for order: {}", request.getOrderId());
 
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found with id: " + request.getOrderId()));
+
+        // Create a pending transaction record
         Transaction transaction = new Transaction();
         transaction.setOrder(order);
-        transaction.setAmount(request.getAmount());
-        transaction.setPaymentMethod(request.getPaymentMethod());
-        transaction.setPaymentId(request.getPaymentId());
-        transaction.setStatus(PaymentStatus.COMPLETED);
+        transaction.setAmount(order.getTotalAmount());
+        transaction.setPaymentMethod("STRIPE"); // Or get from request
+        transaction.setStatus(PaymentStatus.PENDING);
 
-        // Generate Transaction Code: useremail-PAY-1
         User customer = order.getCustomer();
         if (customer != null) {
             long txCount = transactionRepository.countByCustomer(customer);
@@ -44,7 +45,20 @@ public class PaymentService {
         } else {
             transaction.setTransactionCode("GUEST-PAY-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         }
+        
+        transactionRepository.save(transaction);
 
-        return transactionRepository.save(transaction);
+        // Create the payment intent with Stripe
+        return stripeService.createPaymentIntent(order.getTotalAmount(), "usd", order.getId().toString());
+    }
+
+    @Transactional
+    public void handleSuccessfulPayment(String stripePaymentIntentId) {
+        // This method will be called by the Stripe Webhook handler
+        log.info("Handling successful payment for Stripe Payment Intent: {}", stripePaymentIntentId);
+
+        // Here you would find the transaction associated with the payment intent,
+        // mark it as COMPLETED, and perform any other post-payment logic.
+        // This requires adding the paymentIntentId to the Transaction entity.
     }
 }

@@ -5,7 +5,6 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,10 +25,10 @@ public class StripeService {
     }
 
     @CircuitBreaker(name = "stripeService", fallbackMethod = "fallbackCreatePaymentIntent")
-    @Retry(name = "stripeService")
+//    @Retry(name = "stripeService")
     public String createPaymentIntent(BigDecimal amount, String currency, String orderId) throws StripeException {
         log.info("Attempting to create Stripe PaymentIntent for order: {}", orderId);
-        
+
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                 .setAmount(amount.multiply(new BigDecimal(100)).longValue())
                 .setCurrency(currency)

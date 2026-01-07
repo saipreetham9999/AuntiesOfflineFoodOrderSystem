@@ -28,6 +28,9 @@ public class MenuItem {
     @Column(nullable = false, precision = 10, scale = 2) // DECIMAL
     private BigDecimal price;
 
+    @Column(length = 1000)
+    private String description;
+
     @Column(nullable = false)
     private String category; // e.g., "RICE", "NOODLES", "DRINKS"
 

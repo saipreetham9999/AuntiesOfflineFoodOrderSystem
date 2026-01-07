@@ -72,6 +72,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/stripe/events").permitAll() // Permit Stripe webhook events
 
                         // Promotion Endpoints
                         .requestMatchers(HttpMethod.GET, "/api/promotions").permitAll()
