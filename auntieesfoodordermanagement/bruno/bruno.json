@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Auntiees Food Order Management",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

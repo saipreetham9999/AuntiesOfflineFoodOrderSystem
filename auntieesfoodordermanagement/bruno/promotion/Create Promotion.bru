@@ -1,0 +1,22 @@
+meta {
+  name: Create Promotion
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/promotions
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+
+headers {
+  Content-Type: multipart/form-data
+}
+
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Delete Promotion
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/promotions/{{promotionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}

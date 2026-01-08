@@ -1,0 +1,15 @@
+meta {
+  name: Search Menu Item by Code
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/menu/search?code=0001
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Create Payment Intent
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/payments/create-intent
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "orderId": "{{orderId}}" // Replace with an actual order ID
+  }
+}
+
+headers {
+  Content-Type: application/json
+}

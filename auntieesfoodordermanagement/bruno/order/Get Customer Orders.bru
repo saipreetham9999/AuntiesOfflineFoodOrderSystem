@@ -1,0 +1,19 @@
+meta {
+  name: Get Customer Orders
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/orders/customer
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}

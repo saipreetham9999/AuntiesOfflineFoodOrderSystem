@@ -1,0 +1,19 @@
+meta {
+  name: Admin Get All Orders
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/orders/admin/all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}

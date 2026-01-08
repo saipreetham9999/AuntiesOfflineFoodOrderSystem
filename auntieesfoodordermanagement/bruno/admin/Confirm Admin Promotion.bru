@@ -1,0 +1,25 @@
+meta {
+  name: Confirm Admin Promotion
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/admin/promote/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "otp": "{{adminOtp}}" // Replace with the actual OTP received by the super admin
+  }
+}
+
+headers {
+  Content-Type: application/json
+}

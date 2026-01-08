@@ -1,0 +1,25 @@
+meta {
+  name: Update Order Status
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/orders/{{orderId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "status": "IN_PROGRESS" // or READY, COMPLETED, CANCELLED
+  }
+}
+
+headers {
+  Content-Type: application/json
+}
